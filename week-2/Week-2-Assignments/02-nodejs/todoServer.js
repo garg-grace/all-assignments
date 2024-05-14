@@ -41,9 +41,109 @@
  */
 const express = require('express');
 const bodyParser = require('body-parser');
+const fs = require('fs');
+const { title } = require('process');
 
 const app = express();
+let counter=1;
 
 app.use(bodyParser.json());
 
-module.exports = app;
+function findIndex(todos,id){
+  for(let i=0;i<todos.length;i++){
+    if(todos[i].id===id) return i;
+  }
+  return -1;
+}
+
+function removeAtIndex(todos,index){
+  let newTodos=[];
+  for(let i=0;i<todos.length;i++){
+    if(i!==index) newTodos.push(todos[i]);
+
+  }
+  return newTodos;
+}
+app.get("/todos",(req,res)=>{
+  fs.readFile("todo.json","utf-8",(err,data)=>{
+    if(err) throw err;
+    // else res.send(data);
+    res.status(200).json(JSON.parse(data));
+  });
+ 
+});
+
+app.get("/todos/:id",(req,res)=>{
+  fs.readFile("todo.json","utf8",(err,data)=>{
+    if(err) throw err;
+    const todos =JSON.parse(data);
+    const index = findIndex(todos,parseInt(req.params.id));
+    if(index==-1) res.status(404).send();
+    else res.json(todos[index]);
+  });
+});
+
+app.post("/todos",(req,res)=>{
+  const newTodo={
+    id:counter++,
+    title:req.body.title,
+    description:req.body.description
+  };
+  console.log(newTodo);
+
+  fs.readFile("todo.json","utf8",(err,data)=>{
+    if(err) throw err;
+    const todos=JSON.parse(data);
+    todos.push(newTodo);
+    fs.writeFile("todo.json",JSON.stringify(todos),(err)=>{
+      if(err) throw err;
+      res.status(201).json(newTodo);
+    });
+  });
+
+});
+
+app.put("/todos/:id",(req,res)=>{
+  fs.readFile("todo.json","utf8",(err,data)=>{
+    if(err) throw err;
+    const todos = JSON.parse(data);
+    const todoIndex=findIndex(todos,parseInt(req.params.id));
+    if(todoIndex==-1){
+      res.status(404).send("Not Found");
+    }else{
+      const updatedTodo = {
+        id:todos[todoIndex].id,
+        title:req.body.title,
+        description:req.body.description
+      }
+      todos[todoIndex]=updatedTodo;
+      fs.writeFile("todo.json",JSON.stringify(todos),(err)=>{
+        if(err) throw err;
+
+        res.status(200).json(todos[todoIndex]);
+      });
+    }
+  });
+
+});
+
+app.delete("/todos/:id",(req,res)=>{
+  fs.readFile("todo.json","utf8",(err,data)=>{
+    if(err) throw err;
+    let todos= JSON.parse(data);
+    const index=findIndex(todos,parseInt(req.params.id));
+    if(index===-1) res.status(404).send("NOT FOUND");
+    else{
+      todos=removeAtIndex(todos,index);
+      fs.writeFile("todo.json",JSON.stringify(todos),(err)=>{
+        if(err) throw err;
+        res.status(200).json(todos);
+      });
+    }
+  });
+});
+
+
+app.listen(3000,() => {
+  console.log("Server is running on port 3000");
+});
